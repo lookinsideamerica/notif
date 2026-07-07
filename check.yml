@@ -1,0 +1,37 @@
+name: Check Board and Notify
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"    # 5분마다 실행 (UTC 기준). public 저장소는 무료 실행시간 한도가 없음
+  workflow_dispatch:          # Actions 탭에서 수동으로도 실행 가능
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 파이썬 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
+
+      - name: 게시판 확인 및 알림 전송
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python check_board.py
+
+      - name: 변경사항(마지막 확인 글번호) 커밋
+        run: |
+          git config user.name "board-notifier-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add last_seen.json
+          git diff --quiet --cached || git commit -m "update last_seen"
+          git push
